@@ -1,9 +1,8 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+//const sqlite3 = require('sqlite3').verbose();
 const uuid = require("uuid");
 const config = require('./config');
 var CryptoJS = require("crypto-js");
-require('ejs')
 
 var app = express();
 
@@ -11,12 +10,10 @@ var http = require('http').createServer(app);
 
 var io = require('socket.io')(http);
 
-app.set('view engine', 'ejs');
-app.use(express.static(__dirname + '/public'));
-
 var secret;
+var rooms;
 
-let db = new sqlite3.Database('chatAppDB', (err) => {
+/*let db = new sqlite3.Database('chatAppDB', (err) => {
     if (err) {
         return console.error(err.message);
     }
@@ -35,8 +32,8 @@ db.serialize(() => {
 
     db.each('SELECT rowid AS id, name, password FROM users', (err, row) => {
         console.log(row.id + ": " + row.name + ": " + row.password);
-    })*/
-});
+    })
+});*/
 
 app.get('/', (req, res) => {
     res.status(200).send({ content: 'Server is up!' })
@@ -48,7 +45,7 @@ app.post('/close', (req,res) => {
         res.status(200).send({
             content: "Server closing."
         })
-        db.close()
+        //db.close()
         server.close()
     }
     else if(!auth) {
@@ -71,16 +68,22 @@ function init() {
         secret = uuid.v4();
     }
     port = config.port;
+    rooms = config.rooms;
 }
 
 
 // Server Events //
-
+totalUsers = 0;
 // event for when user connects to server //
 io.on('connection', (socket) => {
+    // send user join message
     socket.on('connectedUser', name => {
-        socket.broadcast.emit('connectedUser', name)
+        totalUsers++;
+        socket.broadcast.emit('connectedUser', {user: name, users: totalUsers});    
     })
+
+    // send chat message
+    
     socket.on('chatMsg', data => {
         socket.emit('chatMsg', data);
     })
@@ -88,10 +91,11 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('chatMsg', data)
         console.log('broadcasting message');
     })
+
+    // test
     socket.on('test', () => {
         io.sockets.emit('test')
     })
-    socket.on('disconnect')
 });
 
 var port;
